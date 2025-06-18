@@ -18,6 +18,8 @@ model User {
   name      String
   email     String   @unique
   password  String
+  currentStreak Int      @default(0)
+  completedLessons String @default("[]") // JSON string array of completed lesson IDs
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
