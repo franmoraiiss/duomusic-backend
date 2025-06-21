@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Save completed lessons for a user
 export const saveCompletedLessons = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -20,15 +19,27 @@ export const saveCompletedLessons = async (req: Request, res: Response): Promise
       return;
     }
 
-    // Convert array to JSON string for storage
     const completedLessonsJson = JSON.stringify(completedLessons);
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        completedLessons: completedLessonsJson
-      }
+    let userProgress = await prisma.userProgress.findUnique({
+      where: { userId }
     });
+
+    if (!userProgress) {
+      userProgress = await prisma.userProgress.create({
+        data: {
+          userId,
+          completedLessons: completedLessonsJson
+        }
+      });
+    } else {
+      userProgress = await prisma.userProgress.update({
+        where: { userId },
+        data: {
+          completedLessons: completedLessonsJson
+        }
+      });
+    }
 
     res.json({
       message: 'Completed lessons saved successfully',
@@ -40,7 +51,6 @@ export const saveCompletedLessons = async (req: Request, res: Response): Promise
   }
 };
 
-// Get completed lessons for a user
 export const getCompletedLessons = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -50,20 +60,16 @@ export const getCompletedLessons = async (req: Request, res: Response): Promise<
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        completedLessons: true
-      }
+    const userProgress = await prisma.userProgress.findUnique({
+      where: { userId }
     });
 
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
+    if (!userProgress) {
+      res.json({ completedLessons: [] });
       return;
     }
 
-    // Parse JSON string back to array
-    const completedLessons = JSON.parse(user.completedLessons);
+    const completedLessons = JSON.parse(userProgress.completedLessons);
 
     res.json({
       completedLessons: completedLessons
@@ -74,7 +80,6 @@ export const getCompletedLessons = async (req: Request, res: Response): Promise<
   }
 };
 
-// Add a single completed lesson to user's progress
 export const addCompletedLesson = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -91,38 +96,41 @@ export const addCompletedLesson = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Get current completed lessons
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        completedLessons: true
-      }
+    let userProgress = await prisma.userProgress.findUnique({
+      where: { userId }
     });
 
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
-
-    // Parse current completed lessons
-    const currentCompletedLessons = JSON.parse(user.completedLessons);
-
-    // Add new lesson if not already completed
-    if (!currentCompletedLessons.includes(lessonId)) {
-      currentCompletedLessons.push(lessonId);
-
-      // Update user with new completed lessons
-      await prisma.user.update({
-        where: { id: userId },
+    if (!userProgress) {
+      userProgress = await prisma.userProgress.create({
         data: {
-          completedLessons: JSON.stringify(currentCompletedLessons)
+          userId,
+          completedLessons: JSON.stringify([lessonId])
         }
       });
+    } else {
+      const currentCompletedLessons = JSON.parse(userProgress.completedLessons);
+
+      if (!currentCompletedLessons.includes(lessonId)) {
+        currentCompletedLessons.push(lessonId);
+
+        userProgress = await prisma.userProgress.update({
+          where: { userId },
+          data: {
+            completedLessons: JSON.stringify(currentCompletedLessons)
+          }
+        });
+      }
     }
+
+    const updatedProgress = await prisma.userProgress.findUnique({
+      where: { userId }
+    });
+
+    const completedLessons = updatedProgress ? JSON.parse(updatedProgress.completedLessons) : [];
 
     res.json({
       message: 'Lesson marked as completed',
-      completedLessons: currentCompletedLessons
+      completedLessons: completedLessons
     });
   } catch (error) {
     console.error('Add completed lesson error:', error);

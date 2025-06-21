@@ -21,7 +21,6 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
   try {
     const { name, email, password } = req.body;
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -31,10 +30,8 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
       return;
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         name,
@@ -43,7 +40,6 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
       },
     });
 
-    // Generate JWT token
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
 
     res.status(201).json({
@@ -65,7 +61,6 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
   try {
     const { email, password } = req.body;
 
-    // Find user
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -75,7 +70,6 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
       return;
     }
 
-    // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
@@ -83,7 +77,6 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
       return;
     }
 
-    // Generate JWT token
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
 
     res.json({

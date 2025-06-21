@@ -22,7 +22,6 @@ export const generateMusicTheoryQuestions = async (
 ): Promise<void> => {
   const { topic, count } = req.body;
 
-  // Validate input
   if (!topic || !count || count < 1 || count > 10) {
     res.status(400).json({ 
       message: 'Invalid input. Topic is required and count must be between 1 and 10.' 
@@ -30,7 +29,6 @@ export const generateMusicTheoryQuestions = async (
     return;
   }
 
-  // Check if OpenAI API key is configured
   if (!process.env.OPENAI_API_KEY) {
     res.status(500).json({ 
       message: 'OpenAI API key not configured' 
@@ -90,8 +88,7 @@ export const generateMusicTheoryQuestions = async (
     });
   } catch (error) {
     console.error('Error generating questions:', error);
-    
-    // Fallback to default questions if API call fails
+
     const fallbackQuestions: Question[] = [
       {
         question: "1. Quais são as sete notas musicais naturais usadas na música ocidental?",

@@ -1,7 +1,7 @@
 {
   "name": "duomusic-back",
   "version": "1.0.0",
-  "description": "Backend for user authentication",
+  "description": "Backend for Duomusic",
   "main": "dist/app.js",
   "scripts": {
     "start": "node dist/app.js",

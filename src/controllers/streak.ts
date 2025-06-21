@@ -3,18 +3,27 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Update user's streak
 export const updateStreak = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId; // This will come from the auth middleware
+    const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({ message: 'Unauthorized' });
       return;
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
+    let userProgress = await prisma.userProgress.findUnique({
+      where: { userId }
+    });
+
+    if (!userProgress) {
+      userProgress = await prisma.userProgress.create({
+        data: { userId }
+      });
+    }
+
+    const updatedProgress = await prisma.userProgress.update({
+      where: { userId },
       data: {
         currentStreak: {
           increment: 1
@@ -24,7 +33,7 @@ export const updateStreak = async (req: Request, res: Response): Promise<void> =
 
     res.json({
       message: 'Streak updated successfully',
-      currentStreak: user.currentStreak
+      currentStreak: updatedProgress.currentStreak
     });
   } catch (error) {
     console.error('Update streak error:', error);
@@ -32,7 +41,6 @@ export const updateStreak = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-// Get user's current streak
 export const getCurrentStreak = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -42,20 +50,20 @@ export const getCurrentStreak = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    const userProgress = await prisma.userProgress.findUnique({
+      where: { userId },
       select: {
         currentStreak: true
       }
     });
 
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
+    if (!userProgress) {
+      res.json({ currentStreak: 0 });
       return;
     }
 
     res.json({
-      currentStreak: user.currentStreak
+      currentStreak: userProgress.currentStreak
     });
   } catch (error) {
     console.error('Get current streak error:', error);
@@ -63,14 +71,17 @@ export const getCurrentStreak = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// Get top 5 users by streak
 export const getTopStreaks = async (req: Request, res: Response): Promise<void> => {
   try {
-    const topUsers = await prisma.user.findMany({
+    const topUsers = await prisma.userProgress.findMany({
       select: {
-        id: true,
-        name: true,
-        currentStreak: true
+        currentStreak: true,
+        user: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: {
         currentStreak: 'desc'
@@ -78,7 +89,13 @@ export const getTopStreaks = async (req: Request, res: Response): Promise<void> 
       take: 5
     });
 
-    res.json(topUsers);
+    const formattedTopUsers = topUsers.map(progress => ({
+      id: progress.user.id,
+      name: progress.user.name,
+      currentStreak: progress.currentStreak
+    }));
+
+    res.json(formattedTopUsers);
   } catch (error) {
     console.error('Get top streaks error:', error);
     res.status(500).json({ message: 'Internal server error' });
